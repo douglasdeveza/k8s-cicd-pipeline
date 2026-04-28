@@ -1,0 +1,97 @@
+name: CI/CD Pipeline - Build, Push & Deploy
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: k8s-cicd-pipeline
+
+jobs:
+  # ─── JOB 1: Build e Push da imagem Docker ───────────────────────────────────
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extrair metadata da imagem
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest
+
+      - name: Build e Push da imagem
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # ─── JOB 2: Deploy no Kubernetes (Kind) ─────────────────────────────────────
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Instalar Kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.22.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Criar cluster Kind
+        run: |
+          kind create cluster --name cicd-lab --wait 60s
+
+      - name: Instalar kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "v1.29.0"
+
+      - name: Substituir imagem no deployment
+        run: |
+          sed -i "s|SEU_DOCKERHUB_USERNAME|${{ secrets.DOCKERHUB_USERNAME }}|g" k8s/deployment.yaml
+
+      - name: Aplicar manifests no Kubernetes
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+
+      - name: Aguardar deploy ficar pronto
+        run: |
+          kubectl rollout status deployment/flask-api -n cicd-lab --timeout=120s
+
+      - name: Verificar pods rodando
+        run: |
+          kubectl get pods -n cicd-lab
+          kubectl get services -n cicd-lab
+
+      - name: Testar aplicação via port-forward
+        run: |
+          kubectl port-forward service/flask-api-service 8080:80 -n cicd-lab &
+          sleep 5
+          curl -f http://localhost:8080/ && echo "✅ Endpoint / OK"
+          curl -f http://localhost:8080/health && echo "✅ Endpoint /health OK"
+          curl -f http://localhost:8080/info && echo "✅ Endpoint /info OK"
