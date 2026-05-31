@@ -185,5 +185,5 @@ push to main
 ## 👤 Author
 
 **Douglas Deveza**
-- LinkedIn: [linkedin.com/in/douglasdeveza](https://linkedin.com/in/douglasdeveza)
-- GitHub: [github.com/SEU_GITHUB_USERNAME](https://github.com/douglasdeveza/)
+- LinkedIn: https://linkedin.com/in/douglasdeveza
+- GitHub: https://github.com/douglasdeveza/
