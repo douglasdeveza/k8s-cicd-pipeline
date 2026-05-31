@@ -186,4 +186,4 @@ push to main
 
 **Douglas Deveza**
 - LinkedIn: [linkedin.com/in/douglasdeveza](https://linkedin.com/in/douglasdeveza)
-- GitHub: [github.com/SEU_GITHUB_USERNAME](https://github.com/SEU_GITHUB_USERNAME)
+- GitHub: [github.com/SEU_GITHUB_USERNAME](https://github.com/douglasdeveza/)
